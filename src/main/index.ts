@@ -13,21 +13,6 @@ const execAsync = promisify(exec)
 
 // ── Keyboard injection ────────────────────────────────────────────────────────
 
-let robot: {
-  typeString: (s: string) => void
-  keyTap: (key: string) => void
-  moveMouse: (x: number, y: number) => void
-  mouseClick: () => void
-} | null = null
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  robot = require('robotjs')
-  console.log('[flytext] robotjs loaded')
-} catch {
-  console.warn('[flytext] robotjs not available — using shell fallback')
-}
-
 function escapeShellChar(char: string): string {
   return char.replace(/'/g, "'\\''")
 }
@@ -42,10 +27,6 @@ function escapeSendKeys(char: string): string {
 }
 
 async function injectChar(char: string): Promise<void> {
-  if (robot) {
-    try { robot.typeString(char); return } catch { /* fall through */ }
-  }
-
   if (process.platform === 'linux') {
     await execAsync(`xdotool type --delay 0 --clearmodifiers -- '${escapeShellChar(char)}'`)
   } else if (process.platform === 'win32') {
@@ -57,9 +38,6 @@ async function injectChar(char: string): Promise<void> {
 }
 
 async function injectBackspace(): Promise<void> {
-  if (robot) {
-    try { robot.keyTap('backspace'); return } catch { /* fall through */ }
-  }
   if (process.platform === 'linux') {
     await execAsync('xdotool key --clearmodifiers BackSpace')
   } else if (process.platform === 'win32') {
@@ -70,9 +48,6 @@ async function injectBackspace(): Promise<void> {
 }
 
 async function moveMouse(x: number, y: number): Promise<void> {
-  if (robot) {
-    try { robot.moveMouse(x, y); return } catch { /* fall through */ }
-  }
   if (process.platform === 'linux') {
     await execAsync(`xdotool mousemove ${x} ${y}`)
   } else if (process.platform === 'win32') {
@@ -83,14 +58,11 @@ async function moveMouse(x: number, y: number): Promise<void> {
 }
 
 async function clickMouse(): Promise<void> {
-  if (robot) {
-    try { robot.mouseClick(); return } catch { /* fall through */ }
-  }
   if (process.platform === 'linux') {
     await execAsync('xdotool click 1')
   } else if (process.platform === 'win32') {
     await execAsync(
-      `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position; Add-Type -MemberDefinition '[DllImport(\"user32.dll\")] public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);' -Name 'Win32' -Namespace 'P'; [P.Win32]::mouse_event(2, 0, 0, 0, 0); [P.Win32]::mouse_event(4, 0, 0, 0, 0)"`,
+      `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; Add-Type -MemberDefinition '[DllImport(\"user32.dll\")] public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);' -Name 'Win32' -Namespace 'P'; [P.Win32]::mouse_event(2, 0, 0, 0, 0); [P.Win32]::mouse_event(4, 0, 0, 0, 0)"`,
     )
   }
 }
