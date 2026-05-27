@@ -1,0 +1,40 @@
+{
+  "name": "flytext",
+  "version": "1.0.0",
+  "description": "Human-like text typing overlay with AI chat",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build && electron-builder",
+    "preview": "electron-vite preview",
+    "rebuild": "electron-rebuild -f -w robotjs"
+  },
+  "dependencies": {
+    "robotjs": "^0.7.1",
+    "framer-motion": "^11.3.0",
+    "openai": "^4.52.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "typescript": "^5.5.4",
+    "vite": "^5.3.5"
+  },
+  "build": {
+    "appId": "com.flytext.app",
+    "productName": "Flytext",
+    "files": ["dist-electron/**/*", "dist/**/*"],
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage" }
+  }
+}
