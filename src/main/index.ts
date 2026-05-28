@@ -85,6 +85,7 @@ async function clickMouse(): Promise<void> {
 let mainWin: BrowserWindow | null = null
 let markerWin: BrowserWindow | null = null
 let captureWin: BrowserWindow | null = null
+let currentWindowMode: string = 'expanded'
 
 // In electron-vite: dev URL is set via ELECTRON_RENDERER_URL env var
 const RENDERER_URL = process.env['ELECTRON_RENDERER_URL']
@@ -115,6 +116,19 @@ function createMainWindow() {
   })
 
   mainWin.setIgnoreMouseEvents(true, { forward: true })
+
+  // Snap to collapsed pill when dragged to top of screen
+  mainWin.on('moved', () => {
+    if (!mainWin || currentWindowMode !== 'expanded') return
+    const [, y] = mainWin.getPosition()
+    if (y <= 2) {
+      const { width: sw } = screen.getPrimaryDisplay().workAreaSize
+      currentWindowMode = 'collapsed'
+      mainWin.setSize(260, 44)
+      mainWin.setPosition(Math.round(sw / 2 - 130), 0)
+      mainWin.webContents.send('snap-to-collapsed')
+    }
+  })
 
   if (RENDERER_URL) {
     mainWin.loadURL(RENDERER_URL)
@@ -204,6 +218,7 @@ ipcMain.handle('win-toggle-pin', () => {
 
 ipcMain.handle('win-set-mode', (_e, mode: string) => {
   if (!mainWin) return
+  currentWindowMode = mode
   const { width: sw } = screen.getPrimaryDisplay().workAreaSize
   if (mode === 'expanded') {
     mainWin.setSize(460, 600)

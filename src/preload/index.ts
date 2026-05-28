@@ -44,6 +44,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Transparency mode
   setTransparency: (on: boolean) => ipcRenderer.invoke('win-set-transparency', on),
 
+  // Snap-to-top event from main process
+  onSnapToCollapsed: (cb: () => void) => {
+    ipcRenderer.on('snap-to-collapsed', cb)
+    return () => ipcRenderer.removeAllListeners('snap-to-collapsed')
+  },
+
   // Info
   getPlatform: () => process.platform,
 })

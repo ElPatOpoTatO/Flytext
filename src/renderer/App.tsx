@@ -16,13 +16,39 @@ export default function App() {
 
   // Mouse tracking for selective click-through
   useEffect(() => {
+    if (isTransparent) {
+      // Transparency mode: start fully click-through, only TitleBar zone (top 36px) is interactive
+      window.electronAPI?.setIgnoreMouseEvents(true)
+      const handleMove = (e: MouseEvent) => {
+        window.electronAPI?.setIgnoreMouseEvents(e.clientY > 36)
+      }
+      window.addEventListener('mousemove', handleMove)
+      return () => {
+        window.removeEventListener('mousemove', handleMove)
+        window.electronAPI?.setIgnoreMouseEvents(false)
+      }
+    }
+    // Normal mode: selective based on interactive elements
     const handleMove = (e: MouseEvent) => {
       const el = document.elementFromPoint(e.clientX, e.clientY)
-      const isInteractive = el?.closest('[data-interactive]') !== null || el?.closest('button') !== null || el?.closest('textarea') !== null || el?.closest('input') !== null || el?.closest('a') !== null
+      const isInteractive =
+        el?.closest('[data-interactive]') !== null ||
+        el?.closest('button') !== null ||
+        el?.closest('textarea') !== null ||
+        el?.closest('input') !== null ||
+        el?.closest('a') !== null
       window.electronAPI?.setIgnoreMouseEvents(!isInteractive)
     }
     window.addEventListener('mousemove', handleMove)
     return () => window.removeEventListener('mousemove', handleMove)
+  }, [isTransparent])
+
+  // Snap-to-top: main process sends this when window is dragged to y=0
+  useEffect(() => {
+    const unsub = window.electronAPI?.onSnapToCollapsed?.(() => {
+      setWindowMode('collapsed')
+    })
+    return () => unsub?.()
   }, [])
 
   const handleTogglePin = useCallback(async () => {

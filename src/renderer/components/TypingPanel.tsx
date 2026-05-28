@@ -27,6 +27,7 @@ declare global {
       clickMouse: () => Promise<void>
       unpin: () => Promise<void>
       setTransparency: (on: boolean) => Promise<void>
+      onSnapToCollapsed: (cb: () => void) => () => void
       moveWindow: (x: number, y: number) => void
       getPlatform: () => string
     }
