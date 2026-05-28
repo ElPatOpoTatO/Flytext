@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('mouse-move', pos),
   clickMouse: () => ipcRenderer.invoke('mouse-click'),
 
+  // Window position
+  moveWindow: (x: number, y: number) => ipcRenderer.invoke('win-move', x, y),
+
   // Info
   getPlatform: () => process.platform,
 })

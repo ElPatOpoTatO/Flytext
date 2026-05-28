@@ -91,39 +91,12 @@ export default function App() {
             )}
 
             {windowMode === 'collapsed' && (
-              <motion.div
-                key="collapsed"
-                data-interactive
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.1 }}
-                onClick={() => {
+              <DraggablePill
+                onExpand={() => {
                   setWindowMode('expanded')
                   window.electronAPI?.setWindowMode('expanded')
                 }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  gap: 6,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--text-muted)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Flytext
-                </span>
-              </motion.div>
+              />
             )}
 
             {showContent && (
@@ -183,19 +156,26 @@ export default function App() {
                     </svg>
                   </button>
 
-                  <button
+                  <div
                     data-interactive
-                    className="btn btn-icon"
-                    onClick={() => {
-                      setWindowMode('collapsed')
-                      window.electronAPI?.setWindowMode('collapsed')
+                    className="drag-region"
+                    title="Arrastrar para mover"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'grab',
+                      color: 'var(--text-muted)',
+                      opacity: 0.5,
                     }}
-                    title="Colapsar"
                   >
-                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                      <path d="M1 5L5 1L9 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                      <circle cx="3" cy="3" r="1"/><circle cx="7" cy="3" r="1"/>
+                      <circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/>
                     </svg>
-                  </button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -203,5 +183,76 @@ export default function App() {
         </motion.div>
       </LayoutGroup>
     </div>
+  )
+}
+
+function DraggablePill({ onExpand }: { onExpand: () => void }) {
+  const dragging = useRef(false)
+  const moved = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragging.current = true
+    moved.current = false
+    const startMouseX = e.screenX
+    const startMouseY = e.screenY
+    const startWinX = window.screenX
+    const startWinY = window.screenY
+
+    const onMove = (me: MouseEvent) => {
+      const dx = me.screenX - startMouseX
+      const dy = me.screenY - startMouseY
+      if (!moved.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        moved.current = true
+      }
+      if (moved.current) {
+        window.electronAPI?.moveWindow(startWinX + dx, startWinY + dy)
+      }
+    }
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      dragging.current = false
+      if (!moved.current) onExpand()
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [onExpand])
+
+  return (
+    <motion.div
+      key="collapsed"
+      data-interactive
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ delay: 0.1 }}
+      onMouseDown={handleMouseDown}
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'grab',
+        gap: 6,
+        userSelect: 'none',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          pointerEvents: 'none',
+        }}
+      >
+        Flytext
+      </span>
+    </motion.div>
   )
 }

@@ -196,12 +196,16 @@ ipcMain.handle('win-set-mode', (_e, mode: string) => {
     mainWin.setSize(460, 600)
     mainWin.setPosition(Math.round(sw / 2 - 230), 0)
   } else if (mode === 'collapsed') {
+    // Only resize — let the pill stay wherever the user dragged it
     mainWin.setSize(260, 44)
-    mainWin.setPosition(Math.round(sw / 2 - 130), 0)
   } else if (mode === 'ghost') {
     mainWin.setSize(200, 6)
     mainWin.setPosition(Math.round(sw / 2 - 100), 0)
   }
+})
+
+ipcMain.handle('win-move', (_e, x: number, y: number) => {
+  mainWin?.setPosition(Math.round(x), Math.round(y))
 })
 
 ipcMain.handle('win-set-ignore-mouse', (_e, ignore: boolean) => {

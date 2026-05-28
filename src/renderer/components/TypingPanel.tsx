@@ -22,6 +22,7 @@ declare global {
       moveMouse: (pos: { x: number; y: number }) => Promise<void>
       clickMouse: () => Promise<void>
       getPlatform: () => string
+      moveWindow: (x: number, y: number) => Promise<void>
     }
   }
 }
