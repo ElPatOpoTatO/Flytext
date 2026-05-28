@@ -35,6 +35,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window position
   moveWindow: (x: number, y: number) => ipcRenderer.invoke('win-move', x, y),
 
+  // Key combos (macros + newlines)
+  pressCombo: (sendKeys: string) => ipcRenderer.invoke('kbd-press-combo', sendKeys),
+
+  // Always-on-top
+  unpin: () => ipcRenderer.invoke('win-unpin'),
+
+  // Transparency mode
+  setTransparency: (on: boolean) => ipcRenderer.invoke('win-set-transparency', on),
+
   // Info
   getPlatform: () => process.platform,
 })

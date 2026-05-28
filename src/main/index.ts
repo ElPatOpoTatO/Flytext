@@ -47,6 +47,19 @@ async function injectBackspace(): Promise<void> {
   }
 }
 
+async function injectCombo(sendKeys: string): Promise<void> {
+  // Validate to only allow safe SendKeys characters before executing
+  if (!/^[+^%\{\}\[\]\(\)a-zA-Z0-9:]+$/.test(sendKeys)) return
+  if (process.platform === 'win32') {
+    await execAsync(
+      `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${sendKeys}')"`,
+    )
+  } else if (process.platform === 'linux') {
+    // Basic xdotool fallback — modifier keys are not fully mapped here
+    await execAsync(`xdotool key --clearmodifiers -- '${sendKeys}'`)
+  }
+}
+
 async function moveMouse(x: number, y: number): Promise<void> {
   if (process.platform === 'linux') {
     await execAsync(`xdotool mousemove ${x} ${y}`)
@@ -258,6 +271,23 @@ ipcMain.handle('mouse-click', async () => {
   try { await clickMouse() } catch (err) {
     console.error('[flytext] mouse click error', err)
   }
+})
+
+ipcMain.handle('kbd-press-combo', async (_e, sendKeys: string) => {
+  try { await injectCombo(sendKeys) } catch (err) {
+    console.error('[flytext] combo error', err)
+  }
+})
+
+ipcMain.handle('win-unpin', () => {
+  mainWin?.setAlwaysOnTop(false)
+})
+
+ipcMain.handle('win-set-transparency', (_e, _on: boolean) => {
+  if (!mainWin) return
+  const { width: sw } = screen.getPrimaryDisplay().workAreaSize
+  mainWin.setSize(460, 600)
+  mainWin.setPosition(Math.round(sw / 2 - 230), 0)
 })
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────

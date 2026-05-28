@@ -368,3 +368,90 @@ input[type='range']::-webkit-slider-thumb:hover {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.7); }
 }
+
+/* === TRANSPARENCY MODE === */
+.glass.glass--no-blur {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  opacity: 0.85;
+}
+/* .glass::after (grain) is NOT overridden — stays active in both modes */
+
+/* === MACRO ERROR MARK === */
+.char-macro-error {
+  color: #c87171;
+  text-decoration: underline wavy #c87171;
+  text-underline-offset: 2px;
+}
+
+/* === WINDOW BUTTON PRESS FEEDBACK === */
+.window-btn:active {
+  transform: scale(0.97);
+  transition: transform 100ms ease-out;
+}
+
+/* === TOAST === */
+.toast-stack {
+  position: absolute;
+  bottom: 16px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 200;
+  pointer-events: none;
+  max-width: 220px;
+}
+
+.toast {
+  background: rgba(18, 18, 22, 0.95);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* CSS transitions — NOT keyframes — for interruptibility on rapid toast arrival */
+  transition: opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
+              transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.toast.toast-entering { opacity: 0; transform: translateY(8px); }
+.toast.toast-visible  { opacity: 1; transform: translateY(0); }
+.toast.toast-exiting  {
+  opacity: 0;
+  transform: translateY(8px);
+  transition-duration: 150ms;
+}
+.toast-icon { color: #c87171; flex-shrink: 0; line-height: 1; }
+
+/* === MACRO AUTOCOMPLETE === */
+.macro-autocomplete {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 16px;
+  width: 210px;
+  background: rgba(18, 18, 22, 0.96);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+  /* NO backdrop-filter — list container, GPU repaint ban */
+}
+
+.macro-ac-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.macro-ac-item:hover,
+.macro-ac-item.selected { background: var(--bg-elevated); }
+.macro-ac-name { font-family: var(--font-mono); font-size: 11px; color: var(--text-primary); }
+.macro-ac-hint { font-family: var(--font-mono); font-size: 10px; color: var(--text-ghost); }

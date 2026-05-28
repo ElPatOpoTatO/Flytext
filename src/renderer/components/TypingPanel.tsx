@@ -2,7 +2,10 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import SpeedSlider from './SpeedSlider'
 import HumanConfigPanel from './HumanConfig'
+import MacroAutocomplete, { MacroAutocompleteHandle } from './MacroAutocomplete'
+import { ToastStack, ToastItem } from './Toast'
 import { typeText, HumanConfig, DEFAULT_HUMAN_CONFIG } from '../services/typingEngine'
+import { parseMacros } from '../services/macroParser'
 
 declare global {
   interface Window {
@@ -19,10 +22,13 @@ declare global {
       hideMarker: () => void
       typeChar: (char: string) => Promise<void>
       typeBackspace: () => Promise<void>
+      pressCombo: (sendKeys: string) => Promise<void>
       moveMouse: (pos: { x: number; y: number }) => Promise<void>
       clickMouse: () => Promise<void>
+      unpin: () => Promise<void>
+      setTransparency: (on: boolean) => Promise<void>
+      moveWindow: (x: number, y: number) => void
       getPlatform: () => string
-      moveWindow: (x: number, y: number) => Promise<void>
     }
   }
 }
@@ -47,9 +53,13 @@ export default function TypingPanel({
   const [configOpen, setConfigOpen] = useState(false)
   const [targetPos, setTargetPos] = useState<{ x: number; y: number } | null>(null)
   const [isPinned, setIsPinned] = useState(true)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [macroACOpen, setMacroACOpen] = useState(false)
+  const [macroACFilter, setMacroACFilter] = useState('')
 
   const abortRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const macroACRef = useRef<MacroAutocompleteHandle>(null)
 
   // Accept text from chat
   useEffect(() => {
@@ -81,6 +91,15 @@ export default function TypingPanel({
     window.electronAPI.startCapture()
   }, [])
 
+  const handleDismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  const handleMacroSkip = useCallback((raw: string) => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts((prev) => [...prev, { id, message: `Macro desconocido: ${raw}` }])
+  }, [])
+
   const handleStart = useCallback(async () => {
     if (!text.trim() || typingState === 'typing') return
 
@@ -91,8 +110,8 @@ export default function TypingPanel({
     window.electronAPI.setWindowMode('collapsed')
     window.electronAPI.setIgnoreMouseEvents(true)
 
-    // Move mouse to target and click to focus
-    if (targetPos) {
+    // Auto-click at target position if enabled
+    if (targetPos && humanConfig.autoClick) {
       await window.electronAPI.moveMouse(targetPos)
       await new Promise((r) => setTimeout(r, 80))
       await window.electronAPI.clickMouse()
@@ -109,14 +128,21 @@ export default function TypingPanel({
         {
           typeChar: (c) => window.electronAPI.typeChar(c),
           typeBackspace: () => window.electronAPI.typeBackspace(),
+          pressCombo: (sk) => window.electronAPI.pressCombo(sk),
         },
+        handleMacroSkip,
       )
     } finally {
       setTypingState(ctrl.signal.aborted ? 'idle' : 'done')
       window.electronAPI.setIgnoreMouseEvents(false)
       window.electronAPI.setWindowMode('expanded')
+      // Unpin when typing completes naturally (not stopped by user)
+      if (!ctrl.signal.aborted) {
+        window.electronAPI.unpin()
+        setIsPinned(false)
+      }
     }
-  }, [text, speed, humanConfig, typingState, targetPos])
+  }, [text, speed, humanConfig, typingState, targetPos, handleMacroSkip])
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort()
@@ -136,6 +162,59 @@ export default function TypingPanel({
     const pinned = await window.electronAPI.togglePin()
     setIsPinned(pinned)
   }, [])
+
+  // Textarea change — detect {{ trigger for macro autocomplete
+  const handleTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const val = e.target.value
+      setText(val)
+      setTypedCount(0)
+
+      if (humanConfig.macrosEnabled) {
+        const before = val.slice(0, e.target.selectionStart)
+        const match = before.match(/\{\{([^}]*)$/)
+        if (match) {
+          setMacroACFilter(match[1])
+          setMacroACOpen(true)
+        } else {
+          setMacroACOpen(false)
+        }
+      }
+    },
+    [humanConfig.macrosEnabled],
+  )
+
+  // Textarea keydown — forward to autocomplete first
+  const handleTextKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (macroACOpen && macroACRef.current) {
+        const handled = macroACRef.current.handleKeyDown(e)
+        if (handled) return
+      }
+    },
+    [macroACOpen],
+  )
+
+  // Macro selected from autocomplete
+  const handleMacroSelect = useCallback(
+    (name: string) => {
+      const el = textareaRef.current
+      if (!el) return
+      const sel = el.selectionStart
+      const before = text.slice(0, sel)
+      const match = before.match(/\{\{([^}]*)$/)
+      if (!match) return
+      const start = sel - match[1].length
+      const newText = text.slice(0, start) + name + '}}' + text.slice(sel)
+      setText(newText)
+      setMacroACOpen(false)
+      requestAnimationFrame(() => {
+        el.selectionStart = start + name.length + 2
+        el.selectionEnd = start + name.length + 2
+      })
+    },
+    [text],
+  )
 
   const progress = text.length > 0 ? typedCount / text.length : 0
 
@@ -202,15 +281,20 @@ export default function TypingPanel({
         position: 'relative',
       }}
     >
-      {/* Textarea with typed overlay */}
+      {/* Textarea with typed overlay + macro autocomplete */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {typingState === 'done' || (typingState === 'idle' && typedCount > 0) ? (
-          <TypedOverlay text={text} typedCount={typedCount} />
+          <TypedOverlay
+            text={text}
+            typedCount={typedCount}
+            macrosEnabled={humanConfig.macrosEnabled}
+          />
         ) : (
           <textarea
             ref={textareaRef}
             value={text}
-            onChange={(e) => { setText(e.target.value); setTypedCount(0) }}
+            onChange={handleTextChange}
+            onKeyDown={handleTextKeyDown}
             placeholder="Pega el texto a escribir..."
             className="no-drag"
             style={{
@@ -227,6 +311,16 @@ export default function TypingPanel({
               padding: '0 16px',
               caretColor: 'var(--accent)',
             }}
+          />
+        )}
+
+        {humanConfig.macrosEnabled && (
+          <MacroAutocomplete
+            ref={macroACRef}
+            open={macroACOpen}
+            filter={macroACFilter}
+            onSelect={handleMacroSelect}
+            onClose={() => setMacroACOpen(false)}
           />
         )}
       </div>
@@ -353,19 +447,56 @@ export default function TypingPanel({
         onChange={setHumanConfig}
         onClose={() => setConfigOpen(false)}
       />
+
+      {/* Toast notifications for unknown macros */}
+      <ToastStack toasts={toasts} onDismiss={handleDismissToast} />
     </div>
   )
 }
 
-function TypedOverlay({ text, typedCount }: { text: string; typedCount: number }) {
+function TypedOverlay({
+  text,
+  typedCount,
+  macrosEnabled,
+}: {
+  text: string
+  typedCount: number
+  macrosEnabled: boolean
+}) {
+  // Build per-character token type map for error marking
+  const tokens = parseMacros(text, macrosEnabled)
+  const charMeta: Array<'text' | 'macro' | 'unknown-macro' | 'pause'> = []
+  for (const token of tokens) {
+    if (token.type === 'text') {
+      for (let i = 0; i < token.chars.length; i++) charMeta.push('text')
+    } else {
+      // macro, unknown-macro, pause all have a raw string in the original text
+      const raw = token.type === 'pause'
+        ? text.match(/\{\{pause:\d+\}\}/)?.[0] ?? ''
+        : token.raw
+      for (let i = 0; i < raw.length; i++) charMeta.push(token.type)
+    }
+  }
+
   return (
     <div
       className="typing-display no-drag"
       style={{ padding: '0 16px', height: '100%', overflowY: 'auto' }}
     >
       {text.split('').map((char, i) => {
-        const cls =
-          i < typedCount ? 'char-typed' : i === typedCount ? 'char-current' : 'char-pending'
+        const meta = charMeta[i] ?? 'text'
+        let cls: string
+
+        if (meta === 'unknown-macro') {
+          cls = 'char-macro-error'
+        } else if (i < typedCount) {
+          cls = 'char-typed'
+        } else if (i === typedCount) {
+          cls = 'char-current'
+        } else {
+          cls = 'char-pending'
+        }
+
         if (char === '\n') return <br key={i} />
         return <span key={i} className={cls}>{char}</span>
       })}

@@ -10,6 +10,7 @@ export default function App() {
   const [windowMode, setWindowMode] = useState<WindowMode>('expanded')
   const [chatOpen, setChatOpen] = useState(false)
   const [isPinned, setIsPinned] = useState(true)
+  const [isTransparent, setIsTransparent] = useState(false)
   const [transferredText, setTransferredText] = useState<string | undefined>()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -28,6 +29,12 @@ export default function App() {
     const pinned = await window.electronAPI?.togglePin()
     setIsPinned(pinned)
   }, [])
+
+  const handleToggleTransparency = useCallback(() => {
+    const next = !isTransparent
+    setIsTransparent(next)
+    window.electronAPI?.setTransparency(next)
+  }, [isTransparent])
 
   const handleUseText = useCallback((text: string) => {
     setTransferredText(text)
@@ -55,7 +62,7 @@ export default function App() {
           ref={containerRef}
           layout
           layoutId="notch"
-          className="glass"
+          className={`glass${isTransparent ? ' glass--no-blur' : ''}`}
           style={{
             borderRadius: windowMode === 'ghost' ? 0 : windowMode === 'collapsed' ? 999 : 'var(--radius-lg)',
             overflow: 'hidden',
@@ -115,6 +122,8 @@ export default function App() {
                   onTogglePin={handleTogglePin}
                   onMinimize={() => window.electronAPI?.minimize()}
                   onClose={() => window.electronAPI?.close()}
+                  isTransparent={isTransparent}
+                  onToggleTransparency={handleToggleTransparency}
                 />
 
                 {/* Main content */}

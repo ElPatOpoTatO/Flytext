@@ -103,6 +103,35 @@ export default function HumanConfigPanel({
                 onChange={(v) => set('burstSpeed', v)}
               />
             </Row>
+
+            <Row label="Auto-clic al iniciar">
+              <Toggle
+                checked={config.autoClick}
+                onChange={(v) => set('autoClick', v)}
+              />
+            </Row>
+
+            <Row label="Tecla de nueva línea">
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  className={`btn ${config.newlineMode === 'enter' ? 'btn-accent active' : ''}`}
+                  style={{ fontSize: 10, padding: '3px 8px' }}
+                  onClick={() => set('newlineMode', 'enter')}
+                >Enter</button>
+                <button
+                  className={`btn ${config.newlineMode === 'shift+enter' ? 'btn-accent active' : ''}`}
+                  style={{ fontSize: 10, padding: '3px 8px' }}
+                  onClick={() => set('newlineMode', 'shift+enter')}
+                >Shift+Enter</button>
+              </div>
+            </Row>
+
+            <Row label="Comandos {{macro}}">
+              <Toggle
+                checked={config.macrosEnabled}
+                onChange={(v) => set('macrosEnabled', v)}
+              />
+            </Row>
           </motion.div>
         </>
       )}

@@ -1,10 +1,14 @@
 import { getKeyDistance, getNearbyKey, isTypableChar } from './keyboardDistance'
+import { parseMacros } from './macroParser'
 
 export interface HumanConfig {
-  typoRate: number      // 0–100
+  typoRate: number
   autocorrect: boolean
-  correctionDelay: number // 0–100 (100 = instant correction)
+  correctionDelay: number
   burstSpeed: boolean
+  autoClick: boolean
+  newlineMode: 'enter' | 'shift+enter'
+  macrosEnabled: boolean
 }
 
 export const DEFAULT_HUMAN_CONFIG: HumanConfig = {
@@ -12,18 +16,16 @@ export const DEFAULT_HUMAN_CONFIG: HumanConfig = {
   autocorrect: true,
   correctionDelay: 60,
   burstSpeed: true,
+  autoClick: true,
+  newlineMode: 'shift+enter',
+  macrosEnabled: true,
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-function getDelay(
-  speed: number,
-  distance: number,
-  isBurst: boolean,
-): number {
-  // speed 0–100: 0 = ~280ms base, 100 = ~35ms base
+function getDelay(speed: number, distance: number, isBurst: boolean): number {
   const base = 280 - speed * 2.45
   const distFactor = (100 - speed) * 0.38
   const jitter = (Math.random() - 0.5) * base * 0.35
@@ -34,6 +36,7 @@ function getDelay(
 interface TypeAPI {
   typeChar: (char: string) => Promise<void>
   typeBackspace: () => Promise<void>
+  pressCombo: (sendKeys: string) => Promise<void>
 }
 
 export async function typeText(
@@ -43,65 +46,99 @@ export async function typeText(
   onProgress: (typedCount: number) => void,
   signal: AbortSignal,
   api: TypeAPI,
+  onMacroSkip?: (raw: string) => void,
 ): Promise<void> {
+  const tokens = parseMacros(text, humanConfig.macrosEnabled)
+
   let prev = ''
   let burstCount = 0
   let burstRemaining = 0
+  let rawProgress = 0
 
-  for (let i = 0; i < text.length; i++) {
+  for (const token of tokens) {
     if (signal.aborted) break
-    const char = text[i]
 
-    // Burst speed logic
-    let isBurst = false
-    if (humanConfig.burstSpeed) {
-      if (burstRemaining > 0) {
-        isBurst = true
-        burstRemaining--
-      } else if (Math.random() < 0.08 && burstCount < 3) {
-        isBurst = true
-        burstRemaining = Math.floor(Math.random() * 6) + 3
-        burstCount++
-      } else {
-        burstCount = Math.max(0, burstCount - 0.5)
-      }
+    if (token.type === 'macro') {
+      await api.pressCombo(token.sendKeys)
+      rawProgress += token.raw.length
+      onProgress(rawProgress)
+      continue
     }
 
-    const distance = prev ? getKeyDistance(prev, char) : 0
-    const delay = getDelay(speed, distance, isBurst)
-    await sleep(delay)
-    if (signal.aborted) break
+    if (token.type === 'unknown-macro') {
+      onMacroSkip?.(token.raw)
+      rawProgress += token.raw.length
+      onProgress(rawProgress)
+      continue
+    }
 
-    // Decide if we make a typo
-    const makeTypo =
-      humanConfig.typoRate > 0 &&
-      isTypableChar(char) &&
-      Math.random() * 100 < humanConfig.typoRate
+    if (token.type === 'pause') {
+      await sleep(token.ms)
+      continue
+    }
 
-    if (makeTypo) {
-      const typoChar = getNearbyKey(char)
-      if (typoChar !== char) {
-        await api.typeChar(typoChar)
-        prev = typoChar
+    // text token — run per-character human typing logic
+    for (const char of token.chars) {
+      if (signal.aborted) break
 
-        if (humanConfig.autocorrect) {
-          // Pause before noticing
-          const reactionMs =
-            120 + (100 - humanConfig.correctionDelay) * 5 + Math.random() * 80
-          await sleep(reactionMs)
-          if (signal.aborted) break
-
-          // Backspace
-          await api.typeBackspace()
-          await sleep(40)
-          if (signal.aborted) break
+      // Burst speed logic
+      let isBurst = false
+      if (humanConfig.burstSpeed) {
+        if (burstRemaining > 0) {
+          isBurst = true
+          burstRemaining--
+        } else if (Math.random() < 0.08 && burstCount < 3) {
+          isBurst = true
+          burstRemaining = Math.floor(Math.random() * 6) + 3
+          burstCount++
+        } else {
+          burstCount = Math.max(0, burstCount - 0.5)
         }
-        // If no autocorrect, the typo stays and we continue
       }
-    }
 
-    await api.typeChar(char)
-    prev = char
-    onProgress(i + 1)
+      const distance = prev ? getKeyDistance(prev, char) : 0
+      const delay = getDelay(speed, distance, isBurst)
+      await sleep(delay)
+      if (signal.aborted) break
+
+      // Newline: route through pressCombo so newlineMode applies
+      if (char === '\n') {
+        const sendKeys = humanConfig.newlineMode === 'shift+enter' ? '+{ENTER}' : '{ENTER}'
+        await api.pressCombo(sendKeys)
+        prev = char
+        rawProgress++
+        onProgress(rawProgress)
+        continue
+      }
+
+      // Typo logic
+      const makeTypo =
+        humanConfig.typoRate > 0 &&
+        isTypableChar(char) &&
+        Math.random() * 100 < humanConfig.typoRate
+
+      if (makeTypo) {
+        const typoChar = getNearbyKey(char)
+        if (typoChar !== char) {
+          await api.typeChar(typoChar)
+          prev = typoChar
+
+          if (humanConfig.autocorrect) {
+            const reactionMs =
+              120 + (100 - humanConfig.correctionDelay) * 5 + Math.random() * 80
+            await sleep(reactionMs)
+            if (signal.aborted) break
+            await api.typeBackspace()
+            await sleep(40)
+            if (signal.aborted) break
+          }
+        }
+      }
+
+      await api.typeChar(char)
+      prev = char
+      rawProgress++
+      onProgress(rawProgress)
+    }
   }
 }
