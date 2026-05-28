@@ -95,7 +95,7 @@ export default function ChatPanel({ onUseText, open }: ChatPanelProps) {
             inset: 0,
             display: 'flex',
             flexDirection: 'column',
-            background: 'rgba(13, 13, 16, 0.97)',
+            background: 'linear-gradient(180deg, rgba(14,13,17,0.96) 0%, rgba(10,10,13,0.98) 100%)',
             borderRadius: 'inherit',
             zIndex: 5,
             overflow: 'hidden',
