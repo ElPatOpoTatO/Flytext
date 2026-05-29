@@ -49,17 +49,19 @@ export default function HumanConfigPanel({
               left: 0,
               right: 0,
               borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
-              padding: '20px 18px 22px',
+              padding: '16px 18px 22px',
               zIndex: 20,
               display: 'flex',
               flexDirection: 'column',
               gap: 18,
               background: 'rgba(18, 18, 22, 0.96)',
               borderTop: '1px solid var(--border)',
+              maxHeight: 'calc(100% - 16px)',
+              overflowY: 'auto',
             }}
           >
             {/* Handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: -8 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 0 }}>
               <div style={{ width: 28, height: 3, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 

@@ -50,6 +50,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeAllListeners('snap-to-collapsed')
   },
 
+  // Dynamic Notch events
+  onSnapToNotch: (cb: () => void) => {
+    ipcRenderer.on('snap-to-notch', cb)
+    return () => ipcRenderer.removeAllListeners('snap-to-notch')
+  },
+  onNotchHover: (cb: () => void) => {
+    ipcRenderer.on('notch-hover', cb)
+    return () => ipcRenderer.removeAllListeners('notch-hover')
+  },
+  onNotchUnhover: (cb: () => void) => {
+    ipcRenderer.on('notch-unhover', cb)
+    return () => ipcRenderer.removeAllListeners('notch-unhover')
+  },
+
   // Info
   getPlatform: () => process.platform,
 })

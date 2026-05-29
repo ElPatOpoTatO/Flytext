@@ -28,6 +28,9 @@ declare global {
       unpin: () => Promise<void>
       setTransparency: (on: boolean) => Promise<void>
       onSnapToCollapsed: (cb: () => void) => () => void
+      onSnapToNotch: (cb: () => void) => () => void
+      onNotchHover: (cb: () => void) => () => void
+      onNotchUnhover: (cb: () => void) => () => void
       moveWindow: (x: number, y: number) => void
       getPlatform: () => string
     }
@@ -40,11 +43,13 @@ interface TypingPanelProps {
   onTransferToChat: (text: string) => void
   transferredText?: string
   onTransferConsumed: () => void
+  onTypingStateChange?: (state: TypingState, progress: number) => void
 }
 
 export default function TypingPanel({
   transferredText,
   onTransferConsumed,
+  onTypingStateChange,
 }: TypingPanelProps) {
   const [text, setText] = useState('')
   const [speed, setSpeed] = useState(40)
@@ -219,6 +224,11 @@ export default function TypingPanel({
 
   const progress = text.length > 0 ? typedCount / text.length : 0
 
+  // Notify parent of typing state changes for notch display
+  useEffect(() => {
+    onTypingStateChange?.(typingState, progress)
+  }, [typingState, progress, onTypingStateChange])
+
   // Collapsed / typing mode — pill UI
   if (typingState === 'typing' || typingState === 'capturing') {
     return (
@@ -297,7 +307,7 @@ export default function TypingPanel({
             onChange={handleTextChange}
             onKeyDown={handleTextKeyDown}
             placeholder="Pega el texto a escribir..."
-            className="no-drag"
+            className="no-drag typing-textarea"
             style={{
               width: '100%',
               height: '100%',
@@ -309,7 +319,7 @@ export default function TypingPanel({
               fontFamily: 'var(--font-mono)',
               fontSize: 13,
               lineHeight: 1.6,
-              padding: '0 16px',
+              padding: '12px 16px',
               caretColor: 'var(--accent)',
             }}
           />
@@ -379,11 +389,12 @@ export default function TypingPanel({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M5 1v1.5M5 7.5V9M1 5h1.5M7.5 5H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <circle cx="7.5" cy="7.5" r="3" stroke="currentColor" strokeWidth="1.1"/>
+                  <circle cx="7.5" cy="7.5" r="1" fill="currentColor"/>
+                  <path d="M1 1L4.2 6.8L5.8 5.2L7.5 8.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Refijar
+                Cambiar objetivo
               </motion.button>
             ) : (
               <motion.button
@@ -396,11 +407,12 @@ export default function TypingPanel({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M5 1v1.5M5 7.5V9M1 5h1.5M7.5 5H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <circle cx="7.5" cy="7.5" r="3" stroke="currentColor" strokeWidth="1.1"/>
+                  <circle cx="7.5" cy="7.5" r="1" fill="currentColor"/>
+                  <path d="M1 1L4.2 6.8L5.8 5.2L7.5 8.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Fijar posición
+                Elegir objetivo
               </motion.button>
             )}
           </AnimatePresence>
@@ -427,14 +439,14 @@ export default function TypingPanel({
                 onClick={handleStart}
                 disabled={!text.trim() || !targetPos}
                 title={!targetPos ? 'Primero fija la posición' : ''}
-                style={{ fontSize: 11 }}
+                style={{ fontSize: 11, padding: '6px 16px' }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
                 <svg width="8" height="10" viewBox="0 0 8 10" fill="currentColor">
                   <path d="M0 0L8 5L0 10V0Z"/>
                 </svg>
-                Iniciar
+                Escribir
               </motion.button>
             )}
           </AnimatePresence>

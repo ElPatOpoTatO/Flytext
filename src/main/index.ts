@@ -86,6 +86,36 @@ let mainWin: BrowserWindow | null = null
 let markerWin: BrowserWindow | null = null
 let captureWin: BrowserWindow | null = null
 let currentWindowMode: string = 'expanded'
+let expandedSize = { width: 460, height: 600 }
+let notchPollInterval: ReturnType<typeof setInterval> | null = null
+let notchIsExpanded = false
+
+function startNotchHoverPoll() {
+  if (notchPollInterval) clearInterval(notchPollInterval)
+  notchIsExpanded = false
+
+  notchPollInterval = setInterval(() => {
+    if (!mainWin || currentWindowMode !== 'notch') {
+      clearInterval(notchPollInterval!); notchPollInterval = null; return
+    }
+    const { x: mx, y: my } = screen.getCursorScreenPoint()
+    const [wx, wy] = mainWin.getPosition()
+    const [ww, wh] = mainWin.getSize()
+    const near = mx >= wx - 4 && mx <= wx + ww + 4 && my >= wy - 4 && my <= wy + wh + 4
+
+    if (near && !notchIsExpanded) {
+      notchIsExpanded = true
+      mainWin.setSize(260, 44)
+      mainWin.setIgnoreMouseEvents(false)
+      mainWin.webContents.send('notch-hover')
+    } else if (!near && notchIsExpanded) {
+      notchIsExpanded = false
+      mainWin.setSize(260, 8)
+      mainWin.setIgnoreMouseEvents(true, { forward: true })
+      mainWin.webContents.send('notch-unhover')
+    }
+  }, 33)
+}
 
 // In electron-vite: dev URL is set via ELECTRON_RENDERER_URL env var
 const RENDERER_URL = process.env['ELECTRON_RENDERER_URL']
@@ -98,15 +128,17 @@ function createMainWindow() {
   const { width: sw } = screen.getPrimaryDisplay().workAreaSize
 
   mainWin = new BrowserWindow({
-    width: 460,
-    height: 600,
-    x: Math.round(sw / 2 - 230),
+    width: expandedSize.width,
+    height: expandedSize.height,
+    x: Math.round(sw / 2 - expandedSize.width / 2),
     y: 0,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: false,
-    resizable: false,
+    resizable: true,
+    minWidth: 320,
+    minHeight: 280,
     hasShadow: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -117,16 +149,27 @@ function createMainWindow() {
 
   mainWin.setIgnoreMouseEvents(true, { forward: true })
 
-  // Snap to collapsed pill when dragged to top of screen
+  // Track window size when resized in expanded mode
+  mainWin.on('resized', () => {
+    if (currentWindowMode === 'expanded' && mainWin) {
+      const [w, h] = mainWin.getSize()
+      expandedSize = { width: w, height: h }
+    }
+  })
+
+  // Snap to notch when dragged to top of screen
   mainWin.on('moved', () => {
-    if (!mainWin || currentWindowMode !== 'expanded') return
+    if (!mainWin) return
+    if (currentWindowMode !== 'expanded' && currentWindowMode !== 'collapsed') return
     const [, y] = mainWin.getPosition()
     if (y <= 2) {
       const { width: sw } = screen.getPrimaryDisplay().workAreaSize
-      currentWindowMode = 'collapsed'
-      mainWin.setSize(260, 44)
+      currentWindowMode = 'notch'
+      mainWin.setSize(260, 8)
       mainWin.setPosition(Math.round(sw / 2 - 130), 0)
-      mainWin.webContents.send('snap-to-collapsed')
+      mainWin.setIgnoreMouseEvents(true, { forward: true })
+      mainWin.webContents.send('snap-to-notch')
+      startNotchHoverPoll()
     }
   })
 
@@ -220,15 +263,28 @@ ipcMain.handle('win-set-mode', (_e, mode: string) => {
   if (!mainWin) return
   currentWindowMode = mode
   const { width: sw } = screen.getPrimaryDisplay().workAreaSize
+
+  // Stop notch polling when leaving notch mode
+  if (mode !== 'notch' && notchPollInterval) {
+    clearInterval(notchPollInterval); notchPollInterval = null
+    notchIsExpanded = false
+  }
+
   if (mode === 'expanded') {
-    mainWin.setSize(460, 600)
-    mainWin.setPosition(Math.round(sw / 2 - 230), 0)
+    mainWin.setSize(expandedSize.width, expandedSize.height)
+    mainWin.setPosition(Math.round(sw / 2 - expandedSize.width / 2), 0)
+    mainWin.setIgnoreMouseEvents(false)
   } else if (mode === 'collapsed') {
-    // Only resize — let the pill stay wherever the user dragged it
     mainWin.setSize(260, 44)
+    mainWin.setIgnoreMouseEvents(false)
   } else if (mode === 'ghost') {
     mainWin.setSize(200, 6)
     mainWin.setPosition(Math.round(sw / 2 - 100), 0)
+  } else if (mode === 'notch') {
+    mainWin.setSize(260, 8)
+    mainWin.setPosition(Math.round(sw / 2 - 130), 0)
+    mainWin.setIgnoreMouseEvents(true, { forward: true })
+    startNotchHoverPoll()
   }
 })
 
@@ -299,10 +355,7 @@ ipcMain.handle('win-unpin', () => {
 })
 
 ipcMain.handle('win-set-transparency', (_e, _on: boolean) => {
-  if (!mainWin) return
-  const { width: sw } = screen.getPrimaryDisplay().workAreaSize
-  mainWin.setSize(460, 600)
-  mainWin.setPosition(Math.round(sw / 2 - 230), 0)
+  // Visual-only toggle — CSS handles the glass effect, no window changes needed
 })
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────

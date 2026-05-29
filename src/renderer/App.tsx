@@ -3,8 +3,10 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import TitleBar from './components/TitleBar'
 import TypingPanel from './components/TypingPanel'
 import ChatPanel from './components/ChatPanel'
+import NotchContent from './components/NotchContent'
 
-type WindowMode = 'expanded' | 'collapsed' | 'ghost'
+type WindowMode = 'expanded' | 'collapsed' | 'ghost' | 'notch'
+type TypingState = 'idle' | 'capturing' | 'ready' | 'typing' | 'done'
 
 export default function App() {
   const [windowMode, setWindowMode] = useState<WindowMode>('expanded')
@@ -12,6 +14,9 @@ export default function App() {
   const [isPinned, setIsPinned] = useState(true)
   const [isTransparent, setIsTransparent] = useState(false)
   const [transferredText, setTransferredText] = useState<string | undefined>()
+  const [notchExpanded, setNotchExpanded] = useState(false)
+  const [notchTypingState, setNotchTypingState] = useState<TypingState>('idle')
+  const [notchProgress, setNotchProgress] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Mouse tracking for selective click-through
@@ -33,6 +38,7 @@ export default function App() {
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const isInteractive =
         el?.closest('[data-interactive]') !== null ||
+        el?.closest('.drag-region') !== null ||
         el?.closest('button') !== null ||
         el?.closest('textarea') !== null ||
         el?.closest('input') !== null ||
@@ -43,12 +49,27 @@ export default function App() {
     return () => window.removeEventListener('mousemove', handleMove)
   }, [isTransparent])
 
-  // Snap-to-top: main process sends this when window is dragged to y=0
+  // Snap-to-top events from main process
   useEffect(() => {
-    const unsub = window.electronAPI?.onSnapToCollapsed?.(() => {
-      setWindowMode('collapsed')
+    const unsubNotch = window.electronAPI?.onSnapToNotch?.(() => {
+      setWindowMode('notch')
+      setNotchExpanded(false)
     })
-    return () => unsub?.()
+    return () => unsubNotch?.()
+  }, [])
+
+  // Notch hover events from main process
+  useEffect(() => {
+    const unsubHover = window.electronAPI?.onNotchHover?.(() => {
+      setNotchExpanded(true)
+    })
+    const unsubUnhover = window.electronAPI?.onNotchUnhover?.(() => {
+      setNotchExpanded(false)
+    })
+    return () => {
+      unsubHover?.()
+      unsubUnhover?.()
+    }
   }, [])
 
   const handleTogglePin = useCallback(async () => {
@@ -67,8 +88,33 @@ export default function App() {
     setChatOpen(false)
   }, [])
 
-  // Height based on window mode
-  const containerHeight = windowMode === 'expanded' ? 560 : windowMode === 'collapsed' ? 44 : 6
+  const handleTypingStateChange = useCallback((state: TypingState, progress: number) => {
+    setNotchTypingState(state)
+    setNotchProgress(progress)
+  }, [])
+
+  // Width/height for collapsed/ghost/notch — expanded uses '100%' to fill the window
+  const getAnimateWidth = () => {
+    if (windowMode === 'expanded') return '100%'
+    if (windowMode === 'collapsed') return 260
+    if (windowMode === 'notch') return 260
+    return 200 // ghost
+  }
+
+  const getAnimateHeight = () => {
+    if (windowMode === 'expanded') return '100%'
+    if (windowMode === 'collapsed') return 44
+    if (windowMode === 'notch') return notchExpanded ? 44 : 8
+    return 6 // ghost
+  }
+
+  const getBorderRadius = () => {
+    if (windowMode === 'ghost') return 0
+    if (windowMode === 'collapsed') return 999
+    if (windowMode === 'notch') return notchExpanded ? 22 : 999
+    return 'var(--radius-lg)'
+  }
+
   const showContent = windowMode === 'expanded'
 
   return (
@@ -90,17 +136,21 @@ export default function App() {
           layoutId="notch"
           className={`glass${isTransparent ? ' glass--no-blur' : ''}`}
           style={{
-            borderRadius: windowMode === 'ghost' ? 0 : windowMode === 'collapsed' ? 999 : 'var(--radius-lg)',
+            borderRadius: getBorderRadius(),
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
           }}
           animate={{
-            width: windowMode === 'expanded' ? 440 : windowMode === 'collapsed' ? 260 : 200,
-            height: containerHeight,
+            width: getAnimateWidth(),
+            height: getAnimateHeight(),
           }}
-          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          transition={{
+            type: 'spring',
+            stiffness: windowMode === 'notch' ? 500 : 380,
+            damping: windowMode === 'notch' ? 35 : 32,
+          }}
         >
           <AnimatePresence mode="wait">
             {windowMode === 'ghost' && (
@@ -125,6 +175,18 @@ export default function App() {
 
             {windowMode === 'collapsed' && (
               <DraggablePill
+                onExpand={() => {
+                  setWindowMode('expanded')
+                  window.electronAPI?.setWindowMode('expanded')
+                }}
+              />
+            )}
+
+            {windowMode === 'notch' && (
+              <NotchContent
+                expanded={notchExpanded}
+                typingState={notchTypingState}
+                progress={notchProgress}
                 onExpand={() => {
                   setWindowMode('expanded')
                   window.electronAPI?.setWindowMode('expanded')
@@ -161,6 +223,7 @@ export default function App() {
                     }}
                     transferredText={transferredText}
                     onTransferConsumed={() => setTransferredText(undefined)}
+                    onTypingStateChange={handleTypingStateChange}
                   />
 
                   <ChatPanel
@@ -184,11 +247,12 @@ export default function App() {
                     className={`btn btn-icon ${chatOpen ? 'btn-accent active' : ''}`}
                     onClick={() => setChatOpen((v) => !v)}
                     title="Chat IA"
-                    style={{ borderRadius: 'var(--radius-sm)' }}
+                    style={{ borderRadius: 'var(--radius-sm)', width: 36, height: 36, gap: 5 }}
                   >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                       <path d="M1 2h10v7H7l-2 2V9H1V2z" stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinejoin="round"/>
                     </svg>
+                    <span style={{ fontSize: 10, fontWeight: 500 }}>Chat</span>
                   </button>
 
                   <div
