@@ -27,8 +27,8 @@ export default function TitleBar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '10px 14px 6px',
-        height: 36,
+        padding: '6px 12px 4px',
+        height: 28,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

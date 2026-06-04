@@ -86,7 +86,7 @@ let mainWin: BrowserWindow | null = null
 let markerWin: BrowserWindow | null = null
 let captureWin: BrowserWindow | null = null
 let currentWindowMode: string = 'expanded'
-let expandedSize = { width: 460, height: 600 }
+let expandedSize = { width: 440, height: 400 }
 let notchPollInterval: ReturnType<typeof setInterval> | null = null
 let notchIsExpanded = false
 
