@@ -245,7 +245,7 @@ export default function App() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '6px 14px 8px',
+                    padding: '4px 12px 6px',
                     borderTop: '1px solid var(--border)',
                   }}
                 >
@@ -254,7 +254,7 @@ export default function App() {
                     className={`btn btn-icon ${chatOpen ? 'btn-accent active' : ''}`}
                     onClick={() => setChatOpen((v) => !v)}
                     title="Chat IA"
-                    style={{ borderRadius: 'var(--radius-sm)', width: 36, height: 36, gap: 5 }}
+                    style={{ borderRadius: 'var(--radius-sm)', width: 28, height: 28, gap: 4 }}
                   >
                     <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                       <path d="M1 2h10v7H7l-2 2V9H1V2z" stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinejoin="round"/>
@@ -290,8 +290,8 @@ export default function App() {
                     title={isTransparent ? 'Modo opaco' : 'Modo transparencia'}
                     style={{
                       borderRadius: 'var(--radius-sm)',
-                      width: 36,
-                      height: 36,
+                      width: 28,
+                      height: 28,
                       color: isTransparent ? 'var(--accent2)' : 'var(--text-muted)',
                       background: isTransparent ? 'var(--accent2-dim)' : 'transparent',
                       border: '1px solid var(--border)',

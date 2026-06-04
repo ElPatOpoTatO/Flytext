@@ -258,9 +258,9 @@ export default function TypingPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 14px',
-          height: 44,
-          gap: 12,
+          padding: '0 12px',
+          height: 36,
+          gap: 10,
         }}
       >
         <div className="pill-status">
@@ -345,7 +345,7 @@ export default function TypingPanel({
               fontFamily: 'var(--font-mono)',
               fontSize: 13,
               lineHeight: 1.6,
-              padding: '12px 16px',
+              padding: '8px 12px',
               caretColor: 'var(--accent)',
             }}
           />
@@ -367,7 +367,7 @@ export default function TypingPanel({
         data-interactive
         onMouseDown={handleDividerMouseDown}
         style={{
-          height: 8,
+          height: 5,
           flexShrink: 0,
           cursor: 'ns-resize',
           display: 'flex',
@@ -386,15 +386,15 @@ export default function TypingPanel({
       {/* Controls */}
       <div
         style={{
-          padding: '10px 16px 14px',
+          padding: '7px 12px 10px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 8,
         }}
       >
         <SpeedSlider value={speed} onChange={setSpeed} />
 
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {/* Config button */}
           <button
             data-interactive
