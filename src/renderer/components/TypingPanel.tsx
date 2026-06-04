@@ -63,9 +63,29 @@ export default function TypingPanel({
   const [macroACOpen, setMacroACOpen] = useState(false)
   const [macroACFilter, setMacroACFilter] = useState('')
 
+  const [textAreaHeight, setTextAreaHeight] = useState<number | null>(null)
+
   const abortRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const macroACRef = useRef<MacroAutocompleteHandle>(null)
+  const textAreaRef = useRef<HTMLDivElement>(null)
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startY = e.clientY
+    const startHeight = textAreaRef.current?.offsetHeight ?? 200
+
+    const onMove = (me: MouseEvent) => {
+      const dy = me.clientY - startY
+      setTextAreaHeight(Math.max(48, startHeight + dy))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [])
 
   // Accept text from chat
   useEffect(() => {
@@ -293,7 +313,13 @@ export default function TypingPanel({
       }}
     >
       {/* Textarea with typed overlay + macro autocomplete */}
-      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+      <div
+        ref={textAreaRef}
+        style={textAreaHeight !== null
+          ? { height: textAreaHeight, flexShrink: 0, position: 'relative', minHeight: 0 }
+          : { flex: 1, position: 'relative', minHeight: 0 }
+        }
+      >
         {typingState === 'done' || (typingState === 'idle' && typedCount > 0) ? (
           <TypedOverlay
             text={text}
@@ -336,6 +362,27 @@ export default function TypingPanel({
         )}
       </div>
 
+      {/* Resize handle */}
+      <div
+        data-interactive
+        onMouseDown={handleDividerMouseDown}
+        style={{
+          height: 8,
+          flexShrink: 0,
+          cursor: 'ns-resize',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderTop: '1px solid var(--border)',
+          background: 'transparent',
+          transition: 'background 80ms',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-surface)' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+      >
+        <div style={{ width: 24, height: 2, borderRadius: 1, background: 'var(--border)' }} />
+      </div>
+
       {/* Controls */}
       <div
         style={{
@@ -343,7 +390,6 @@ export default function TypingPanel({
           display: 'flex',
           flexDirection: 'column',
           gap: 12,
-          borderTop: '1px solid var(--border)',
         }}
       >
         <SpeedSlider value={speed} onChange={setSpeed} />

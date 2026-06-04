@@ -7,8 +7,6 @@ interface TitleBarProps {
   onMinimize: () => void
   onClose: () => void
   mode: 'expanded' | 'collapsed'
-  isTransparent: boolean
-  onToggleTransparency: () => void
 }
 
 export default function TitleBar({
@@ -17,8 +15,6 @@ export default function TitleBar({
   onMinimize,
   onClose,
   mode,
-  isTransparent,
-  onToggleTransparency,
 }: TitleBarProps) {
   const [hovered, setHovered] = useState(false)
 
@@ -66,14 +62,6 @@ export default function TitleBar({
           color="var(--accent)"
         >
           <PinIcon />
-        </WindowBtn>
-        <WindowBtn
-          onClick={onToggleTransparency}
-          title={isTransparent ? 'Modo opaco' : 'Modo transparencia'}
-          active={isTransparent}
-          color="var(--accent2)"
-        >
-          <TransparencyIcon />
         </WindowBtn>
         <WindowBtn onClick={onMinimize} title="Minimize">
           <MinusIcon />
@@ -134,15 +122,6 @@ function WindowBtn({
     >
       {children}
     </button>
-  )
-}
-
-function TransparencyIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-      <rect x="1" y="3" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1" fill="currentColor" fillOpacity="0.3"/>
-      <rect x="4" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1" fill="none"/>
-    </svg>
   )
 }
 

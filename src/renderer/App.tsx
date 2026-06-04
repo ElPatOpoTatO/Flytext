@@ -18,6 +18,8 @@ export default function App() {
   const [notchTypingState, setNotchTypingState] = useState<TypingState>('idle')
   const [notchProgress, setNotchProgress] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const windowModeRef = useRef<WindowMode>(windowMode)
+  useEffect(() => { windowModeRef.current = windowMode }, [windowMode])
 
   // Mouse tracking for selective click-through
   useEffect(() => {
@@ -35,6 +37,12 @@ export default function App() {
     }
     // Normal mode: selective based on interactive elements
     const handleMove = (e: MouseEvent) => {
+      // Collapsed mode: the entire window is the draggable pill — always keep interactive
+      // so the drag-to-notch isn't broken when cursor briefly leaves bounds during drag
+      if (windowModeRef.current === 'collapsed') {
+        window.electronAPI?.setIgnoreMouseEvents(false)
+        return
+      }
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const isInteractive =
         el?.closest('[data-interactive]') !== null ||
@@ -104,14 +112,14 @@ export default function App() {
   const getAnimateHeight = () => {
     if (windowMode === 'expanded') return '100%'
     if (windowMode === 'collapsed') return 44
-    if (windowMode === 'notch') return notchExpanded ? 44 : 8
+    if (windowMode === 'notch') return notchExpanded ? 44 : 8  // window height; window width is 300 (main)
     return 6 // ghost
   }
 
   const getBorderRadius = () => {
     if (windowMode === 'ghost') return 0
     if (windowMode === 'collapsed') return 999
-    if (windowMode === 'notch') return notchExpanded ? 22 : 999
+    if (windowMode === 'notch') return notchExpanded ? '0 0 20px 20px' : 4
     return 'var(--radius-lg)'
   }
 
@@ -120,6 +128,7 @@ export default function App() {
   return (
     <div
       style={{
+        position: 'relative',
         width: '100vw',
         height: '100vh',
         display: 'flex',
@@ -210,8 +219,6 @@ export default function App() {
                   onTogglePin={handleTogglePin}
                   onMinimize={() => window.electronAPI?.minimize()}
                   onClose={() => window.electronAPI?.close()}
-                  isTransparent={isTransparent}
-                  onToggleTransparency={handleToggleTransparency}
                 />
 
                 {/* Main content */}
@@ -275,12 +282,49 @@ export default function App() {
                       <circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/>
                     </svg>
                   </div>
+
+                  <button
+                    data-interactive
+                    className={`btn btn-icon ${isTransparent ? 'active' : ''}`}
+                    onClick={handleToggleTransparency}
+                    title={isTransparent ? 'Modo opaco' : 'Modo transparencia'}
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      width: 36,
+                      height: 36,
+                      color: isTransparent ? 'var(--accent2)' : 'var(--text-muted)',
+                      background: isTransparent ? 'var(--accent2-dim)' : 'transparent',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <rect x="1" y="4" width="6" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.1" fill="currentColor" fillOpacity="0.25"/>
+                      <rect x="5" y="2" width="6" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.1" fill="none"/>
+                    </svg>
+                  </button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       </LayoutGroup>
+
+      {windowMode === 'notch' && (
+        <>
+          <div style={{
+            position: 'absolute', top: 0, left: 0,
+            width: 20, height: 44,
+            background: 'radial-gradient(circle at 100% 100%, rgba(18,18,22,0.88) 20px, transparent 20px)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute', top: 0, right: 0,
+            width: 20, height: 44,
+            background: 'radial-gradient(circle at 0% 100%, rgba(18,18,22,0.88) 20px, transparent 20px)',
+            pointerEvents: 'none',
+          }} />
+        </>
+      )}
     </div>
   )
 }

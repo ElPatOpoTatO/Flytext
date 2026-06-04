@@ -101,20 +101,20 @@ function startNotchHoverPoll() {
     const { x: mx, y: my } = screen.getCursorScreenPoint()
     const [wx, wy] = mainWin.getPosition()
     const [ww, wh] = mainWin.getSize()
-    const near = mx >= wx - 4 && mx <= wx + ww + 4 && my >= wy - 4 && my <= wy + wh + 4
+    const near = mx >= wx - 4 && mx <= wx + ww + 4 && my >= wy - 4 && my <= wy + wh + 35
 
     if (near && !notchIsExpanded) {
       notchIsExpanded = true
-      mainWin.setSize(260, 44)
+      mainWin.setSize(300, 44)
       mainWin.setIgnoreMouseEvents(false)
       mainWin.webContents.send('notch-hover')
     } else if (!near && notchIsExpanded) {
       notchIsExpanded = false
-      mainWin.setSize(260, 8)
+      mainWin.setSize(300, 8)
       mainWin.setIgnoreMouseEvents(true, { forward: true })
       mainWin.webContents.send('notch-unhover')
     }
-  }, 33)
+  }, 16)
 }
 
 // In electron-vite: dev URL is set via ELECTRON_RENDERER_URL env var
@@ -158,15 +158,15 @@ function createMainWindow() {
   })
 
   // Snap to notch when dragged to top of screen
-  mainWin.on('moved', () => {
+  mainWin.on('move', () => {
     if (!mainWin) return
     if (currentWindowMode !== 'expanded' && currentWindowMode !== 'collapsed') return
     const [, y] = mainWin.getPosition()
-    if (y <= 2) {
+    if (y <= 5) {
       const { width: sw } = screen.getPrimaryDisplay().workAreaSize
       currentWindowMode = 'notch'
-      mainWin.setSize(260, 8)
-      mainWin.setPosition(Math.round(sw / 2 - 130), 0)
+      mainWin.setSize(300, 8)
+      mainWin.setPosition(Math.round(sw / 2 - 150), 0)
       mainWin.setIgnoreMouseEvents(true, { forward: true })
       mainWin.webContents.send('snap-to-notch')
       startNotchHoverPoll()
@@ -281,8 +281,8 @@ ipcMain.handle('win-set-mode', (_e, mode: string) => {
     mainWin.setSize(200, 6)
     mainWin.setPosition(Math.round(sw / 2 - 100), 0)
   } else if (mode === 'notch') {
-    mainWin.setSize(260, 8)
-    mainWin.setPosition(Math.round(sw / 2 - 130), 0)
+    mainWin.setSize(300, 8)
+    mainWin.setPosition(Math.round(sw / 2 - 150), 0)
     mainWin.setIgnoreMouseEvents(true, { forward: true })
     startNotchHoverPoll()
   }

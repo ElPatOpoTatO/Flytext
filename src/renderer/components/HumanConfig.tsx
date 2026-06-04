@@ -60,9 +60,33 @@ export default function HumanConfigPanel({
               overflowY: 'auto',
             }}
           >
-            {/* Handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 0 }}>
+            {/* Handle + close */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <div style={{ width: 28, height: 3, borderRadius: 2, background: 'var(--border)' }} />
+              <button
+                onClick={onClose}
+                title="Cerrar configuración"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '4px 6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 'var(--radius-sm)',
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M3 5L7 9L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
             </div>
 
             <Row label="Errores de tipeo">
