@@ -179,6 +179,9 @@ function createMainWindow() {
     mainWin.loadFile(getRendererFile('index.html'))
   }
 
+  mainWin.on('close', () => {
+    if (markerWin && !markerWin.isDestroyed()) markerWin.close()
+  })
   mainWin.on('closed', () => { mainWin = null })
 }
 
@@ -186,10 +189,10 @@ function createMarkerWindow(pos: { x: number; y: number }) {
   if (markerWin && !markerWin.isDestroyed()) markerWin.close()
 
   markerWin = new BrowserWindow({
-    width: 80,
-    height: 80,
-    x: Math.round(pos.x - 40),
-    y: Math.round(pos.y - 40),
+    width: 40,
+    height: 40,
+    x: Math.round(pos.x - 20),
+    y: Math.round(pos.y - 20),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
